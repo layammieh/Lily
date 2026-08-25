@@ -1,0 +1,449 @@
+/* ═══════════════════════════════════════════════════════════════
+   LOVE LETTER — style.css  (v3)
+   Key mechanism:
+     • env-front covers the FULL envelope face (inset:0)
+     • clip-path on env-front controls what's hidden/visible:
+         closed  → full rect   → letter completely hidden
+         hover   → V-notch-sm  → letter peeks ~70 px above rim
+         is-open → V-notch-lg  → pocket only, letter slides out
+     • letter-card translateY (set by JS) positions the letter
+       so its top sits just inside the envelope when closed
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── CSS Custom Properties ─────────────────────────────────── */
+:root {
+  --clr-primary-light: #FFB6C1;
+  --clr-primary:       #FF69B4;
+  --clr-primary-dark:  #C71585;
+  --clr-secondary:     #FFC0CB;
+  --clr-tertiary:      #DB7093;
+  --clr-accent:        #FF1493;
+
+  --clr-bg-start: #FFF0F5;
+  --clr-bg-mid:   #FFE4E1;
+  --clr-bg-end:   #FFDAB9;
+
+  /* Envelope dimensions */
+  --env-w: 440px;
+  --env-h: 270px;
+
+  /* Letter slide values — JS overwrites these after measuring */
+  --letter-closed-y: 900px;   /* huge default → definitely hidden before JS runs */
+  --letter-open-y:   100px;   /* JS will set the correct value */
+  --letter-open-x:   80px;    /* Shift letter right when open */
+  --env-open-x:      -40px;   /* Shift envelope left when open */
+  --env-push-down:   130px;
+
+  --clr-paper: #FFFDF8;
+  --clr-text-dark:  #2D1B55;
+  --clr-text-mid:   #4A3380;
+  --clr-text-soft:  #7A6AA0;
+  --clr-text-muted: #A89AC8;
+
+  --font-sans:   'DM Sans', sans-serif;
+  --font-serif:  'Playfair Display', serif;
+  --font-script: 'Dancing Script', cursive;
+
+  --ease-letter: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Reset ──────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-sans);
+  background: linear-gradient(135deg, var(--clr-bg-start), var(--clr-bg-mid), var(--clr-bg-end));
+  background-attachment: fixed;
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Background Layer ──────────────────────────────────────── */
+.bg-layer { position:fixed; inset:0; z-index:0; overflow:hidden; pointer-events:none; }
+#particleCanvas { position:absolute; inset:0; width:100%; height:100%; }
+.gradient-orb { position:absolute; border-radius:50%; filter:blur(80px); }
+.orb-1 { width:600px;height:600px;top:-150px;left:-150px;background:rgba(199,21,133,.18);animation:orbDrift1 18s ease-in-out infinite alternate; }
+.orb-2 { width:500px;height:500px;bottom:-100px;right:-100px;background:rgba(0,184,204,.14);animation:orbDrift2 22s ease-in-out infinite alternate; }
+.orb-3 { width:400px;height:400px;top:40%;left:50%;transform:translateX(-50%);background:rgba(192,132,232,.18);animation:orbDrift3 16s ease-in-out infinite alternate; }
+@keyframes orbDrift1{0%{transform:translate(0,0)scale(1)}100%{transform:translate(80px,60px)scale(1.1)}}
+@keyframes orbDrift2{0%{transform:translate(0,0)scale(1)}100%{transform:translate(-60px,-80px)scale(1.15)}}
+@keyframes orbDrift3{0%{transform:translateX(-50%)scale(.9)}100%{transform:translateX(-50%)scale(1.1)}}
+
+/* ── MP3 Player ─────────────────────────────────────────── */
+.mp3-player {
+  position:fixed;bottom:1.5rem;right:1.5rem;z-index:100;
+  display:flex;align-items:center;gap:12px;
+  background:rgba(255,255,255,.75);backdrop-filter:blur(12px);
+  padding:8px 16px 8px 10px;border-radius:40px;
+  box-shadow:0 8px 30px rgba(199,21,133,.12);
+  border:1px solid rgba(199,21,133,.15);
+  transition:all .3s ease;
+}
+.mp3-player:hover { transform:translateY(-3px); box-shadow:0 12px 40px rgba(199,21,133,.18); }
+
+.mp3-art {
+  width:38px;height:38px;border-radius:50%;
+  background:linear-gradient(135deg, var(--clr-primary-light), var(--clr-primary));
+  display:flex;align-items:center;justify-content:center;
+  color:white;font-size:1.1rem;
+  box-shadow:0 4px 10px rgba(199,21,133,.3);
+}
+.mp3-art.spinning { animation:spinDisc 4s linear infinite; }
+@keyframes spinDisc { 100% { transform:rotate(360deg); } }
+
+.mp3-info { display:flex;flex-direction:column;gap:5px; }
+.mp3-track-select {
+  appearance:none;background:transparent;border:none;outline:none;
+  font-family:var(--font-sans);font-size:.8rem;font-weight:600;
+  color:var(--clr-text-dark);cursor:pointer;padding-right:12px;
+  width:120px;text-overflow:ellipsis;white-space:nowrap;overflow:hidden;
+}
+.mp3-progress {
+  width:120px;height:4px;background:rgba(199,21,133,.12);
+  border-radius:4px;overflow:hidden;position:relative;
+}
+.mp3-progress-bar {
+  position:absolute;left:0;top:0;bottom:0;width:0%;
+  background:var(--clr-primary);transition:width .1s linear;
+}
+
+.mp3-controls { display:flex;align-items:center; }
+.mp3-play-btn {
+  background:transparent;border:none;color:var(--clr-primary);
+  font-size:1.1rem;cursor:pointer;padding:6px;transition:transform .2s;
+  display:flex;align-items:center;justify-content:center;
+}
+.mp3-play-btn:hover { transform:scale(1.15); }
+
+/* ── Stage / Scenes ────────────────────────────────────────── */
+.stage { position:relative;z-index:10;min-height:100vh;display:flex;align-items:center;justify-content:center; }
+.scene { width:100%;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2.5rem;padding:3rem 1.25rem; }
+.scene.hidden { display:none;opacity:0; }
+.scene.fade-in { animation:sceneFadeIn .7s ease forwards; }
+@keyframes sceneFadeIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── Scene Title ────────────────────────────────────────────── */
+.scene-title { text-align:center;animation:titleFloat .9s var(--ease-spring) .1s forwards;opacity:0;transition:opacity .5s ease,transform .5s ease; }
+@keyframes titleFloat{from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:translateY(0)}}
+.scene-title.faded{opacity:0;transform:translateY(-16px);pointer-events:none;}
+.subtitle-tag{display:inline-block;font-size:.78rem;font-weight:500;letter-spacing:.15em;text-transform:uppercase;color:var(--clr-tertiary);background:rgba(0,184,204,.1);border:1px solid rgba(0,184,204,.3);padding:6px 18px;border-radius:20px;margin-bottom:1.25rem;}
+.main-heading{font-family:var(--font-serif);font-size:clamp(1.8rem,4vw,2.8rem);font-weight:400;color:var(--clr-text-dark);line-height:1.3;}
+.main-heading em{font-style:italic;color:var(--clr-primary);font-weight:600;}
+
+/* ══════════════════════════════════════════════════════════════
+   ENVELOPE ASSEMBLY
+   overflow: visible is REQUIRED so the letter can emerge above
+══════════════════════════════════════════════════════════════ */
+.env-assembly {
+  position: relative;
+  width: var(--env-w);
+  height: var(--env-h);
+  cursor: pointer;
+  outline: none;
+
+  /* Entrance */
+  opacity: 0;
+  animation: envEntrance 1s var(--ease-spring) .4s forwards;
+  transition: transform .75s var(--ease-letter);
+}
+@keyframes envEntrance { to { opacity:1; } }
+
+/* Idle float (while letter is still inside) */
+.env-assembly:not(.is-open) {
+  animation: envEntrance 1s var(--ease-spring) .4s forwards,
+             envFloat    4s ease-in-out        2s infinite;
+}
+@keyframes envFloat { 0%,100%{transform:translate(0px, 0px)} 50%{transform:translate(0px, -10px)} }
+
+/* When letter is open: push envelope down and slightly right */
+.env-assembly.is-open {
+  transform: translate(var(--env-open-x, 0px), var(--env-push-down));
+  cursor: default;
+}
+
+/* ── Envelope Back (z:1) ───────────────────────────────────── */
+.env-back {
+  position: absolute; inset: 0; z-index: 1;
+  border-radius: 14px;
+  background: linear-gradient(155deg, #8B0A50 0%, var(--clr-primary-dark) 100%);
+  box-shadow: 0 20px 60px rgba(139,10,80,.5), 0 4px 16px rgba(0,0,0,.25);
+  transition: box-shadow .4s ease;
+}
+.env-assembly:hover .env-back {
+  box-shadow: 0 28px 80px rgba(139,10,80,.65), 0 6px 20px rgba(0,0,0,.3);
+}
+
+/* ── Letter Wrapper & Card ─────────────────────────────────────── */
+/* The wrapper strictly clips the letter from leaking out the bottom of the envelope,
+   but allows it to overflow freely out the top (-800px inset on top). */
+.letter-wrapper {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  clip-path: inset(-800px 0 0 0);
+  pointer-events: none;
+}
+
+/* When open, allow letter to overflow entirely and pop in front of envelope pocket */
+.env-assembly.is-open .letter-wrapper {
+  clip-path: none;
+  z-index: 10;
+}
+
+.letter-card {
+  position: absolute;
+  /*
+    Anchored at the BOTTOM of the envelope.
+    We translate it UP (negative Y) so the top of the letter
+    sits just below the envelope's top edge when closed.
+    JS calculates the exact translateY values.
+  */
+  left: 18px; right: 18px;
+  bottom: 0;        /* letter bottom = envelope bottom */
+  pointer-events: auto;
+
+  background: var(--clr-paper);
+  border-radius: 10px 10px 6px 6px;
+  padding: clamp(1.1rem, 4vw, 1.7rem);
+  border: 1px solid rgba(199,21,133,.07);
+  box-shadow: 0 -3px 16px rgba(199,21,133,.15), 0 4px 30px rgba(199,21,133,.1);
+
+  /* Lined paper texture */
+  background-image: repeating-linear-gradient(
+    transparent, transparent 31px,
+    rgba(199,21,133,.045) 31px, rgba(199,21,133,.045) 32px
+  );
+
+  /* Translate UP to hide inside envelope — JS sets --letter-closed-y to a
+     negative value (e.g. -550px) so the letter sits inside.             */
+  transform: translate(0px, var(--letter-closed-y, -900px));
+  transition: transform .72s var(--ease-letter), box-shadow .35s ease;
+}
+
+/* Paper fold corner */
+.letter-card::after {
+  content:''; position:absolute; bottom:0; right:0;
+  width:34px; height:34px;
+  background:linear-gradient(225deg, var(--clr-bg-mid) 50%, transparent 50%);
+  border-radius:0 0 8px 0; opacity:.5;
+}
+
+/* Subtle hover nudge: letter moves up 14px — the V-notch reveals it */
+.env-assembly:hover .letter-card {
+  transform: translate(0px, calc(var(--letter-closed-y, -900px) - 14px));
+  box-shadow: 0 -8px 28px rgba(199,21,133,.22), 0 4px 30px rgba(199,21,133,.1);
+}
+
+/* Open: letter slides fully out and slightly right (no rotation) */
+.letter-card.is-revealed {
+  transform: translate(var(--letter-open-x, 0px), var(--letter-open-y, -600px)) !important;
+  box-shadow: 0 -16px 50px rgba(199,21,133,.28), 0 8px 40px rgba(199,21,133,.15);
+  transition: transform .8s var(--ease-letter), box-shadow .35s ease;
+}
+
+/* ── Close Letter Button ─────────────────────────────────────── */
+.close-letter-btn {
+  position: absolute;
+  top: 14px; right: 14px;
+  width: 34px; height: 34px;
+  background: rgba(199,21,133,0.06);
+  color: var(--clr-primary);
+  border: none; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  opacity: 0; pointer-events: none;
+  transition: all .3s ease;
+  z-index: 10;
+}
+.letter-card.is-revealed .close-letter-btn {
+  opacity: 1; pointer-events: auto;
+  transition-delay: .6s; /* appear after sliding up */
+}
+.close-letter-btn:hover {
+  background: var(--clr-primary);
+  color: white;
+  transform: scale(1.1);
+}
+
+/* ── Letter Typography ─────────────────────────────────────── */
+.letter-header-deco{display:flex;align-items:center;gap:1.25rem;margin-bottom:1rem;}
+.deco-line{flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(199,21,133,.25),transparent);}
+.deco-heart{color:var(--clr-accent);font-size:.82rem;animation:heartBeat 2s ease infinite;}
+@keyframes heartBeat{0%,100%{transform:scale(1)}14%{transform:scale(1.25)}28%{transform:scale(1)}42%{transform:scale(1.15)}}
+.letter-date{font-size:.77rem;font-weight:500;color:var(--clr-text-muted);letter-spacing:.08em;margin-bottom:.6rem;}
+.letter-heading{font-family:var(--font-script);font-size:clamp(1.5rem,4vw,2.3rem);color:var(--clr-primary);font-weight:700;margin-bottom:1.5rem;line-height:1.2;}
+.letter-body{display:flex;flex-direction:column;gap:1.1rem;margin-bottom:1.5rem;}
+.salutation{font-family:var(--font-script);font-size:1.2rem;color:var(--clr-primary);font-weight:600;margin-bottom:.2rem;}
+.letter-body p{font-size:.96rem;line-height:1.85;color:var(--clr-text-mid);font-weight:300;}
+.letter-signature{border-top:1px solid rgba(199,21,133,.1);padding-top:1rem;margin-bottom:1rem;}
+.sign-close{font-size:.87rem;color:var(--clr-text-soft);margin-bottom:3px;}
+.sign-name{font-family:var(--font-script);font-size:1.45rem;color:var(--clr-primary);font-weight:700;}
+.letter-footer-deco{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:1rem;}
+.deco-dot{width:5px;height:5px;border-radius:50%;background:var(--clr-accent);opacity:.5;}
+
+/* ══════════════════════════════════════════════════════════════
+   ENV-FRONT (z:3) — THE KEY ELEMENT
+   Covers the FULL envelope face. clip-path controls visibility.
+
+   ┌──────────────────────┐  closed: full rectangle
+   │  ╲        ╱          │  letter completely hidden
+   │   ╲      ╱           │
+   │    ╲____╱            │
+   │                      │
+   └──────────────────────┘
+
+   On hover: V-notch appears at top → ~70px of letter visible
+   On open:  V-notch enlarged → only bottom pocket visible
+══════════════════════════════════════════════════════════════ */
+.env-front {
+  position: absolute; inset: 0;
+  z-index: 3;
+  border-radius: 14px;
+
+  /* Solid gradient background — do NOT use background-image here
+     or it will override this color gradient */
+  background:
+    linear-gradient(to right bottom, rgba(255,255,255,.08) 49.5%, transparent 50%),
+    linear-gradient(to left  bottom, rgba(255,255,255,.06) 49.5%, transparent 50%),
+    linear-gradient(160deg, var(--clr-primary-light) 0%, var(--clr-primary-dark) 100%);
+
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.1);
+
+  /* CLOSED: full rectangle → covers letter completely */
+  clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%);
+  transition: clip-path .55s var(--ease-letter);
+}
+
+/* HOVER: V-notch opens at top — reveals ~26% height from rim */
+.env-assembly:hover .env-front {
+  clip-path: polygon(0% 26%, 50% 8%, 100% 26%, 100% 100%, 0% 100%);
+}
+
+/* OPEN: large V-notch — only the lower pocket remains */
+.env-assembly.is-open .env-front {
+  clip-path: polygon(0% 56%, 50% 40%, 100% 56%, 100% 100%, 0% 100%);
+  transition: clip-path .65s var(--ease-letter);
+}
+
+/* ── Wax Seal (z:4) ─────────────────────────────────────────── */
+.env-seal {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 4;
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, var(--clr-accent), var(--clr-primary-dark));
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-size: 1.2rem;
+  box-shadow: 0 4px 18px rgba(199,21,133,.55), inset 0 1px 0 rgba(255,255,255,.2);
+  transition: transform .4s var(--ease-spring), opacity .4s ease;
+}
+.env-assembly:hover .env-seal { transform: translate(-50%, -50%) scale(1.09) rotate(-6deg); }
+.env-seal.fade-out { opacity:0; transform:translate(-50%,-50%) scale(0); }
+.env-seal i { animation: heartBeat 1.8s ease infinite; }
+
+/* ── Hover Hint ─────────────────────────────────────────────── */
+.env-hint {
+  position:absolute; bottom:-34px; left:50%; transform:translateX(-50%);
+  font-size:.7rem;font-weight:500;color:var(--clr-text-muted);
+  letter-spacing:.06em;white-space:nowrap;pointer-events:none;
+  transition:opacity .4s ease;
+}
+.env-hint.hide{opacity:0;}
+
+/* ── Floating Hearts ─────────────────────────────────────────── */
+.hearts-container{position:fixed;inset:0;pointer-events:none;z-index:5;}
+.floating-heart{position:absolute;bottom:-40px;opacity:0;pointer-events:none;animation:floatHeart linear forwards;}
+@keyframes floatHeart{0%{bottom:-40px;opacity:0;transform:translateX(0)rotate(0deg)}10%{opacity:.7}90%{opacity:.35}100%{bottom:110vh;opacity:0;transform:translateX(30px)rotate(25deg)}}
+
+/* ── "A Little More" — fixed, appears after letter opens ──── */
+.more-btn {
+  position: fixed;
+  bottom: 36px; left: 50%;
+  transform: translateX(-50%) translateY(12px);
+  z-index: 200;
+
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 14px 34px;
+  background: rgba(255,255,255,.7); backdrop-filter: blur(14px);
+  color: var(--clr-primary); font-family: var(--font-sans);
+  font-size: .95rem; font-weight: 600;
+  border: 2px solid rgba(199,21,133,.35); border-radius: 40px;
+  cursor: pointer; letter-spacing: .03em;
+  transition: all .45s var(--ease-spring);
+
+  opacity: 0; pointer-events: none; /* hidden by default */
+}
+.more-btn.visible {
+  opacity: 1; pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+.more-btn:hover {
+  background: var(--clr-primary); color: white;
+  border-color: var(--clr-primary); transform: translateX(-50%) translateY(-3px);
+  box-shadow: 0 10px 30px rgba(199,21,133,.4);
+}
+.more-btn i { animation: heartBeat 1.8s ease infinite; }
+
+/* ══════════════════════════════════════════════════════════════
+   EXTRAS SCENE
+══════════════════════════════════════════════════════════════ */
+.extras-scene { gap:1.5rem; max-width:720px; margin:0 auto; width:100%; }
+.extras-card { width:100%; background:rgba(255,255,255,.75); backdrop-filter:blur(20px); border:1px solid rgba(199,21,133,.12); border-radius:24px; padding:2.5rem; box-shadow:0 8px 32px rgba(199,21,133,.1); }
+.fade-child { opacity:0; transform:translateY(24px); transition:opacity .6s ease,transform .6s ease; }
+.fade-child.visible { opacity:1; transform:translateY(0); }
+
+.quote-card { background:linear-gradient(135deg,rgba(199,21,133,.06),rgba(0,184,204,.06)); text-align:center; }
+.quote-icon { font-size:2rem; color:var(--clr-accent); opacity:.6; margin-bottom:1.25rem; }
+.romantic-quote { font-family:var(--font-serif); font-style:italic; font-size:clamp(1rem,2.5vw,1.2rem); color:var(--clr-text-dark); line-height:1.75; margin-bottom:1.25rem; }
+.quote-author { font-size:.85rem; color:var(--clr-text-soft); font-weight:500; }
+
+.extras-section-title { font-family:var(--font-serif); font-size:1.2rem; color:var(--clr-primary); margin-bottom:1.5rem; display:flex; align-items:center; gap:10px; }
+.extras-section-title i { color:var(--clr-tertiary); }
+
+.memories-list { list-style:none; display:flex; flex-direction:column; gap:1rem; }
+.memory-item { display:flex; flex-direction:column; gap:3px; padding:1.1rem; border-radius:14px; background:rgba(199,21,133,.04); border-left:3px solid var(--clr-accent); transition:all .25s ease; }
+.memory-item:hover { background:rgba(199,21,133,.08); transform:translateX(4px); }
+.memory-date { font-size:.72rem; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--clr-tertiary); }
+.memory-desc { font-size:.94rem; color:var(--clr-text-mid); }
+
+.final-card { text-align:center; background:linear-gradient(135deg,rgba(199,21,133,.08),rgba(192,132,232,.08)); }
+.final-message { font-family:var(--font-serif); font-style:italic; font-size:clamp(1rem,2.5vw,1.1rem); color:var(--clr-text-dark); line-height:1.8; margin-bottom:1.25rem; }
+.final-sign { font-family:var(--font-script); font-size:1.5rem; color:var(--clr-primary); font-weight:700; }
+
+.back-btn { display:inline-flex;align-items:center;gap:10px;padding:12px 28px;background:transparent;color:var(--clr-text-soft);font-family:var(--font-sans);font-size:.9rem;font-weight:500;border:1.5px solid rgba(199,21,133,.25);border-radius:40px;cursor:pointer;transition:all .3s ease; }
+.back-btn:hover { color:var(--clr-primary); border-color:var(--clr-primary); transform:translateX(-4px); }
+
+/* ── Scrollbar ───────────────────────────────────────────── */
+::-webkit-scrollbar { width:6px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:rgba(199,21,133,.3); border-radius:3px; }
+
+/* ══════════════════════════════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════════════════════════════ */
+@media (max-width: 520px) {
+  :root { 
+    --env-w: 330px; 
+    --env-h: 205px; 
+    --letter-open-x: 20px;
+    --env-open-x: -15px;
+  }
+  .letter-card { left:14px; right:14px; }
+  .extras-card { padding:1.5rem; }
+}
+@media (max-width: 380px) {
+  :root { 
+    --env-w: 290px; 
+    --env-h: 180px; 
+    --letter-open-x: 10px;
+    --env-open-x: -10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration:.01ms !important; transition-duration:.01ms !important; }
+}

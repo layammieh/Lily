@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>For You, With Love 💜</title>
+  <meta name="description" content="A personal digital love letter — crafted with all my heart, just for you." />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300;1,9..40,400&family=Playfair+Display:ital,wght@0,400;0,600;1,400;1,600&family=Dancing+Script:wght@400;600;700&display=swap"
+    rel="stylesheet" />
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+
+  <!-- ═══════════════════════════════════════════
+       ANIMATED BACKGROUND
+  ════════════════════════════════════════════ -->
+  <div class="bg-layer" id="bgLayer" aria-hidden="true">
+    <div class="gradient-orb orb-1"></div>
+    <div class="gradient-orb orb-2"></div>
+    <div class="gradient-orb orb-3"></div>
+    <canvas id="particleCanvas"></canvas>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       MUSIC PLAYER
+  ════════════════════════════════════════════ -->
+  <div class="mp3-player" id="musicControl">
+    <div class="mp3-art" id="mp3Art">
+      <i class="fas fa-compact-disc"></i>
+    </div>
+    <div class="mp3-info">
+      <select class="mp3-track-select" id="trackSelect" aria-label="Select track">
+        <option value="assets/musics/kalapastangan.mp3">Kalapastangan</option>
+        <option value="assets/musics/look after you.mp3">Look After You</option>
+      </select>
+      <div class="mp3-progress">
+        <div class="mp3-progress-bar" id="mp3ProgressBar"></div>
+      </div>
+    </div>
+    <div class="mp3-controls">
+      <button id="musicBtn" class="mp3-play-btn" aria-label="Toggle play">
+        <i class="fas fa-play" id="musicIcon"></i>
+      </button>
+    </div>
+    <audio id="bgMusic" loop>
+      <source src="assets/musics/kalapastangan.mp3" type="audio/mpeg" />
+    </audio>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       MAIN STAGE
+  ════════════════════════════════════════════ -->
+  <main class="stage" id="stage">
+
+    <!-- ─── ENVELOPE SCENE ─── -->
+    <section class="scene envelope-scene" id="envelopeScene" aria-label="Love letter in envelope">
+
+      <!-- Scene title (fades out when letter is revealed) -->
+      <div class="scene-title" id="sceneTitle">
+        <h1 class="main-heading">Something special<br /><em>awaits inside</em></h1>
+      </div>
+
+      <div class="env-assembly" id="envAssembly" role="button" tabindex="0"
+        aria-label="Hover to peek at the letter, click to open it">
+
+        <!-- ── THE ACTUAL LETTER (lives inside the envelope) ── -->
+        <div class="letter-wrapper">
+          <article class="letter-card" id="letterCard" aria-label="Love letter content">
+
+            <!-- Close Button -->
+            <button class="close-letter-btn" id="closeLetterBtn" aria-label="Close letter" title="Put letter back">
+              <i class="fas fa-times"></i>
+            </button>
+
+            <div class="letter-header-deco" aria-hidden="true">
+              <span class="deco-line"></span>
+              <i class="fas fa-heart deco-heart"></i>
+              <span class="deco-line"></span>
+            </div>
+
+            <p class="letter-date">August 26, 2026</p>
+            <h2 class="letter-heading">For You, Cotcoting</h2>
+
+            <!-- ── Edit the letter body freely ── -->
+            <div class="letter-body">
+              <p class="salutation">My Baby,</p>
+
+              <p>
+                Hi Jeya! Im so proud of you, I hope you'll reach everything that u want
+                in life. I promise that I will always be there to support you in every aspect.
+                I'm so thankful that you gave me a chance to get to know you deeper and letting me in
+                your life. I promise to never hurt you and be always there for you whenever you need me.
+              </p>
+
+              <p>
+                You are my favorite notification every day, and my favorite
+                human to have a conversation with. I hope walay magchange sa atoa kay I really wanna
+                keep whatever this is. You're too precious para mawala sa akoa.
+
+              </p>
+            </div>
+
+            <div class="letter-signature">
+              <p class="sign-close">With all my love,</p>
+              <p class="sign-name"> Cookie na taga lumbia <span class="sign-heart">❤️</span></p>
+            </div>
+
+            <div class="letter-footer-deco" aria-hidden="true">
+              <span class="deco-dot"></span>
+              <span class="deco-dot"></span>
+              <span class="deco-dot"></span>
+            </div>
+
+          </article>
+        </div>
+        <!-- end .letter-card -->
+
+        <!-- ── ENVELOPE LAYERS (rendered on top of / behind the letter) ── -->
+
+        <!-- Back panel: sits behind the letter (z:1) -->
+        <div class="env-back" aria-hidden="true">
+          <!-- Decorative diagonal crease lines (purely visual) -->
+          <div class="env-crease env-crease-left"></div>
+          <div class="env-crease env-crease-right"></div>
+        </div>
+
+        <!-- Front-lower pocket: always in front of letter (z:3), covers bottom portion -->
+        <div class="env-front" aria-hidden="true">
+          <!-- Wax seal sits on the front pocket -->
+          <div class="env-seal" id="envSeal">
+            <i class="fas fa-heart"></i>
+          </div>
+        </div>
+
+        <!-- Hover hint label -->
+        <div class="env-hint" id="envHint" aria-hidden="true">
+          <i class="fas fa-hand-pointer"></i> hover · click to open
+        </div>
+
+      </div><!-- end .env-assembly -->
+
+      <!-- Floating hearts (appear after letter is opened) -->
+      <div class="hearts-container" id="heartsContainer" aria-hidden="true"></div>
+
+    </section>
+
+  </main>
+
+  <script src="script.js"></script>
+</body>
+
+</html>
